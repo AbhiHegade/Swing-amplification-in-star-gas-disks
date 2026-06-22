@@ -1,5 +1,6 @@
 # Swing-amplification-in-star-gas-disks
 
+# Code description
 The main source code is available in src/Vlasov_integrators_thick_disk.py.
 
 The main classes are:
@@ -12,3 +13,6 @@ class Gas_plus_stars_integrator - Use for integrating a star - gas disk. Can als
 
 class two_fluid_integrator - Two fluid approximation to star - gas disk.
 
+# Examples
+
+Several examples are avaiable. In the Classic-Results we reproduce some important results from Binney 2019. Reproduce-Star-Disk-Paper directory contains code to reproduce all the results in the paper.
