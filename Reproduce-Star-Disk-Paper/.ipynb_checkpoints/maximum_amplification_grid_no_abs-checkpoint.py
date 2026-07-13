@@ -27,7 +27,7 @@ def Kfunc_kernel(t,ti, kyval, Sigma_s_val, sigma_x_val, Omega0_val, hs):
 def Kfunc_kernel_max(tf,ti, kyval, Sigma_s_val, sigma_x_val, Omega0_val, hs, nvals = 500):
     tgrid= np.linspace(ti,tf, nvals)
 
-    Kvals = np.abs(np.array([Kfunc_kernel(t,ti, kyval, Sigma_s_val, sigma_x_val, Omega0_val, hs) for t in tgrid]))
+    Kvals = np.array([Kfunc_kernel(t,ti, kyval, Sigma_s_val, sigma_x_val, Omega0_val, hs) for t in tgrid])
 
     return float(np.max(Kvals))
 
@@ -49,7 +49,7 @@ def get_self_gravity_response_max_gas_plus_stars(tf,ti, kyval, Rvals, Qgas, Qsta
     t_grid = np.linspace(ti, tf, nvals)
     results = sim.solve(t_grid, fext_params={'delta': 0.0, 'amplitude' : 0}, impulse_params = {"t_0": ti, "Sigma_impluse" : 1})
 
-    surface_densities_stellar = np.abs(sim.get_stellar_surface_density(results, t_grid))
+    surface_densities_stellar = sim.get_stellar_surface_density(results, t_grid)
 
     return np.max(surface_densities_stellar)
 

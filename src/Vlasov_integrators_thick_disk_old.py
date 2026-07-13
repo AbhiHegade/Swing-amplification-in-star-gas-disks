@@ -42,8 +42,7 @@ def njit_s1func(t, kx, kyc, Sigma_g, kappa, Omega0, cssq, Hgas, G):
     else:
         K = njit_Kfunc(t, kx, kyc, kappa, Omega0)
         A = njit_afunc(kappa, Omega0)
-        k0t = njit_k0func(t, kx, kyc, kappa, Omega0)
-        return (4*A*Hgas*kyc*k0t)/K
+        return (4*A*Hgas*kyc*np.sqrt(-kyc**2 + K**2))/K
         
 @njit
 def njit_ssqfunc(t, kx, kyc, Sigma_g, kappa, Omega0, cssq, Hgas, G):
@@ -86,13 +85,10 @@ def njit_Kpot_kernel_func(t, s, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G)
 
         return factor * np.exp(exparg)
     
-# AH: If this is the response to a razor thin external potential. Then it is correct.
 @njit
 def njit_K_kernel_func(t, s, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G):
     """
-    Passive stellar density response to a razor-thin external surface-density impulse.
-    Since the source is external, only the target-time potential-to-density conversion
-    applies: K = Kpot_thick * k(t) * (1 + Hs*k(t)) / k(s).
+    Kernel for stellar density response. Can be obtained from the potential Kernel through K = Kpot* k(t)*(1 + Hs*k(t))/ (k(s) * ( 1 + Hs * k(s))).
     
     """
     if np.abs(kyc) < 1e-10 and np.abs(kx) < 1e-10:
@@ -104,7 +100,7 @@ def njit_K_kernel_func(t, s, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G):
         Kt = njit_Kfunc(t, kx, kyc, kappa, Omega0)
         Ks = njit_Kfunc(s, kx, kyc, kappa, Omega0)
 
-        return Kpotthick*Kt*(1+Hs*Kt)/Ks
+        return Kpotthick*Kt*(1+Hs*Kt)/(Ks*(1+Hs*Ks))
 
 # ==========================================
 # 2. JIT-Comnp.piled Matrix Construction
@@ -136,15 +132,15 @@ def build_h_matrix_njit(t_grid, kx, kyc, Sigma_g, Sigma_s, kappa, Omega0, sigma_
                 h_mat[r, c+1] = -(h / 2.0)
                 h_mat[r+1, c] = -(h / 2.0) * (-ssqthick)/(1 + Hg*Ktp)
                 h_mat[r+1, c+1] = 1.0 - (h/2.0)*(-s1thick/((1 + Hg*Ktp)))
-                h_mat[r+1, c+2] = -(h / 2.0) * (2 * np.pi * G * Sigma_g * Ktp)/(1 + Hg*Ktp)
-                h_mat[r+2, c] = -(h / 2.0) * kmat
+                h_mat[r+1, c+2] = -(h / 2.0) * (2 * np.pi * G * Sigma_g * Ktp)*(1 + Hs*Ktp)/((1 + Hg*Ktp)**2)
+                h_mat[r+2, c] = -(h / 2.0) * kmat *(1 + Hg*Ktp)/(1 + Hs*Ktp)
                 h_mat[r+2, c+2] = 1.0 - (h / 2.0) * kmat
             else:
                 h_mat[r, c+1] = -h
                 h_mat[r+1, c] = -h * (-ssqthick)/(1 + Hg*Ktp)
                 h_mat[r+1, c+1] = -(h)*(-s1thick/((1 + Hg*Ktp)))
-                h_mat[r+1, c+2] = -h * (2 * np.pi * G * Sigma_g * Ktp)/(1 + Hg*Ktp)
-                h_mat[r+2, c] = -h * kmat
+                h_mat[r+1, c+2] = -h * (2 * np.pi * G * Sigma_g * Ktp)*(1 + Hs*Ktp)/((1 + Hg*Ktp)**2)
+                h_mat[r+2, c] = -h * kmat *(1 + Hg*Ktp)/(1 + Hs*Ktp)
                 h_mat[r+2, c+2] = -h * kmat
                 
     return h_mat
@@ -238,10 +234,10 @@ def build_h_matrix_two_fluid_njit(t_grid, kx, kyc, Sigma_g, Sigma_s, kappa, Omeg
                 h_mat[r, c+1] = -(h / 2.0)
                 h_mat[r+1, c] = -(h / 2.0) * (-ssqthick)/(1 + Hg*Ktp)
                 h_mat[r+1, c+1] = 1.0 - (h/2.0)*(-s1thick/((1 + Hg*Ktp)))
-                h_mat[r+1, c+2] = -(h / 2.0) * (2 * np.pi * G * Sigma_g * Ktp)/(1 + Hg*Ktp)
+                h_mat[r+1, c+2] = -(h / 2.0) * (2 * np.pi * G * Sigma_g * Ktp)*(1 + Hs*Ktp)/((1 + Hg*Ktp)**2)
                 h_mat[r+2, c+2] = 1.0 
                 h_mat[r+2, c+3] = -(h/2.0)
-                h_mat[r+3, c] = -(h / 2.0) * (2 * np.pi * G * Sigma_s * Ktp)/(1 + Hs*Ktp)
+                h_mat[r+3, c] = -(h / 2.0) * (2 * np.pi * G * Sigma_s * Ktp)*(1 + Hg*Ktp)/((1 + Hs*Ktp)**2)
                 h_mat[r+3,c+2] = -(h / 2.0) * (-ssqthick_stars)/(1 + Hs*Ktp)
                 h_mat[r+3,c+3] = 1.0 - (h/2.0)*(-s1thick_stars/((1 + Hs*Ktp)))
             else:
@@ -249,10 +245,10 @@ def build_h_matrix_two_fluid_njit(t_grid, kx, kyc, Sigma_g, Sigma_s, kappa, Omeg
 
                 h_mat[r+1, c] = -h * (-ssqthick) / (1.0 + Hg * Ktp)
                 h_mat[r+1, c+1] = -h * (-s1thick) / (1.0 + Hg * Ktp)
-                h_mat[r+1, c+2] = -h*((2 * np.pi * G * Sigma_g * Ktp)/(1 + Hg*Ktp))
+                h_mat[r+1, c+2] = -h*((2 * np.pi * G * Sigma_g * Ktp)*(1 + Hs*Ktp)/((1 + Hg*Ktp)**2))
                 h_mat[r+2, c+3] = -h
 
-                h_mat[r+3, c] = - h *(2 * np.pi * G * Sigma_s * Ktp)/(1 + Hs*Ktp)
+                h_mat[r+3, c] = - h *(2 * np.pi * G * Sigma_s * Ktp)*(1 + Hg*Ktp)/((1 + Hs*Ktp)**2)
                 h_mat[r+3, c+2] = -h *  (-ssqthick_stars)/(1 + Hs*Ktp)
                 h_mat[r+3, c+3] = -h * (-s1thick_stars/((1 + Hs*Ktp)))
                 
@@ -264,15 +260,13 @@ def build_h_matrix_two_fluid_njit(t_grid, kx, kyc, Sigma_g, Sigma_s, kappa, Omeg
 @njit
 def stellar_only_forcing(tf, t_grid_for_integration, limit_idx, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G, Sigma_ext_vals):
     """
-    Returns int_{t_0}^{tf} Kpot(t,tp) * (-2*np.pi*G *Sigma_ext(tp))/k(tp).
+    Returns int_{t_0}^{tf} Kpot(t,tp) * (-2*np.pi*G *Sigma_ext(tp))/(k(tp)*(1+Hs*k(tp))).
 
     Sigma_ext_vals contains [Sigma_ext(t_0), Sigma_ext(t_1), Sigma_ext(t_2),...].
 
     t_grid_for_integration is [t_0, t_1, t_2, t_3, t_4 ,..].
 
-    limit_idx contains the index where t_grid_for_integration[limit_idx-1] = tf.
-    
-    External source is assumed to be thin.
+    limit_idx contains the index where t_grid_for_integration[limit_idx-1] = tf
     """
     total = 0.0
     if limit_idx < 2:
@@ -282,14 +276,14 @@ def stellar_only_forcing(tf, t_grid_for_integration, limit_idx, kx, kyc, Sigma_s
 
     tp = t_grid_for_integration[0]
     ktp = njit_Kfunc(tp, kx, kyc, kappa, Omega0)
-    k_prev = njit_Kpot_kernel_func(tf, t_grid_for_integration[0], kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G)* (-2*np.pi*G)/ktp
+    k_prev = njit_Kpot_kernel_func(tf, t_grid_for_integration[0], kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G)* (-2*np.pi*G)/(ktp*(1+Hs*ktp))
     f_prev = Sigma_ext_vals[0]
     
     for i in range(1, limit_idx):
         tp = t_grid_for_integration[i]
         ktp = njit_Kfunc(tp, kx, kyc, kappa, Omega0)
 
-        k_curr = njit_Kpot_kernel_func(tf, tp, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G)* (-2*np.pi*G)/ktp
+        k_curr = njit_Kpot_kernel_func(tf, tp, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G)* (-2*np.pi*G)/(ktp*(1+Hs*ktp))
 
         f_curr = Sigma_ext_vals[i]
         
@@ -304,8 +298,6 @@ def stellar_only_forcing(tf, t_grid_for_integration, limit_idx, kx, kyc, Sigma_s
 def build_bb_vec_stellar_njit(t_grid, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G, Sigma_ext_vals, impulse_val):
     """
     Build B_{n,1} vec from Eq. (B43) for stellar dynamics only.
-
-    External source is assumed to be thin.
     """
     n = len(t_grid) - 1
     bb_vec = np.zeros(n)
@@ -317,7 +309,7 @@ def build_bb_vec_stellar_njit(t_grid, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, 
         t_target = t_grid[i+1]
         forcing_res = stellar_only_forcing(t_target, t_grid, i+2, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G, Sigma_ext_vals)
 
-        k_start = njit_Kpot_kernel_func(t_target, t_start, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G) *(-2*np.pi*G)/kt0
+        k_start = njit_Kpot_kernel_func(t_target, t_start, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G) *(-2*np.pi*G)/(kt0*(1+Hs*kt0))
 
         bb_vec[i] = forcing_res + k_start * impulse_val
         
@@ -328,8 +320,6 @@ def gas_forcing_njit(t_grid, limit_idx, kx, kyc, Sigma_g, kappa, Omega0, Hg, G, 
 
     """
     Build gas dynamics forcing function.
-
-    External source is assumed to be thin.
     """
 
     total = np.zeros(2)
@@ -337,14 +327,14 @@ def gas_forcing_njit(t_grid, limit_idx, kx, kyc, Sigma_g, kappa, Omega0, Hg, G, 
         return total
     
     ktp_prev = njit_Kfunc(t_grid[0], kx, kyc, kappa, Omega0)
-    val_prev = -(2 * np.pi * G)**2 * Sigma_g / (1 + Hg*ktp_prev) * Sigma_ext_vals[0]
+    val_prev = -(2 * np.pi * G)**2 * Sigma_g / ((1 + Hg*ktp_prev)**2) * Sigma_ext_vals[0]
 
     h = t_grid[1] - t_grid[0]
     
     for i in range(1, limit_idx):
         tp = t_grid[i]
         ktp_curr = njit_Kfunc(tp, kx, kyc, kappa, Omega0)
-        val_curr = -(2 * np.pi * G)**2 * Sigma_g /(1 + Hg*ktp_curr) *  Sigma_ext_vals[i]
+        val_curr = -(2 * np.pi * G)**2 * Sigma_g /((1 + Hg*ktp_curr) **2) *  Sigma_ext_vals[i]
         
         
         total[1] += 0.5 * h * (val_prev + val_curr)
@@ -356,8 +346,6 @@ def gas_forcing_njit(t_grid, limit_idx, kx, kyc, Sigma_g, kappa, Omega0, Hg, G, 
 def build_bb_vec_gas_njit(t_grid, kx, kyc, Sigma_g, kappa, Omega0, cssq, Hg, G, Sigma_ext_vals, impulse_val):
     """
     Build B_{n,1} vec from Eq. (B43) for gas dynamics only.
-
-    External source is assumed to be thin.
     """
 
     n = len(t_grid) - 1
@@ -368,7 +356,7 @@ def build_bb_vec_gas_njit(t_grid, kx, kyc, Sigma_g, kappa, Omega0, cssq, Hg, G, 
     for i in prange(n):
         # t_target = t_grid[i+1]
         forcing = gas_forcing_njit(t_grid, i+2, kx, kyc, Sigma_g, kappa, Omega0, Hg, G, Sigma_ext_vals)
-        impulse_res = np.array([0.0, -(2 * np.pi * G)**2 * Sigma_g * impulse_val/(1+Hg*kt0) ])
+        impulse_res = np.array([0.0, -(2 * np.pi * G)**2 * Sigma_g * impulse_val/((1+Hg*kt0)**2) ])
         
         res = forcing + impulse_res
         bb_vec[2*i] = res[0]
@@ -380,8 +368,6 @@ def build_bb_vec_gas_njit(t_grid, kx, kyc, Sigma_g, kappa, Omega0, cssq, Hg, G, 
 def fast_combined_forcing_njit(t_target, t_grid, limit_idx, kx, kyc, Sigma_g, Sigma_s, kappa, Omega0, sigma_x, Hg, Hs, G, Sigma_ext_vals):
     """
     Build gas + stellar dynamics forcing function.
-
-    External source is assumed to be thin.
     """
     total = np.zeros(3)
     if limit_idx < 2:
@@ -390,7 +376,7 @@ def fast_combined_forcing_njit(t_target, t_grid, limit_idx, kx, kyc, Sigma_g, Si
     # def get_val(tp, sigma_ext_val):
     #     kmat = njit_Kpot_kernel_func(t_target, tp, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G)
     #     ktp = njit_Kfunc(tp, kx, kyc, kappa, Omega0)
-    #     return np.array([0.0,  -(2 * np.pi * G)**2 * Sigma_g * 1.0/(1+Hg*ktp) * sigma_ext_val, - (2* np.pi* G)* kmat * 1.0/ktp * sigma_ext_val])
+    #     return np.array([0.0,  -(2 * np.pi * G)**2 * Sigma_g * 1.0/((1+Hg*ktp)**2) * sigma_ext_val, - (2* np.pi* G)* kmat * 1.0/(ktp*(1+Hs*ktp)) * sigma_ext_val])
 
     # Calculate index 0 directly 
     tp_prev = t_grid[0]
@@ -399,8 +385,8 @@ def fast_combined_forcing_njit(t_target, t_grid, limit_idx, kx, kyc, Sigma_g, Si
     
     val_prev = np.array([
         0.0,  
-        -(2 * np.pi * G)**2 * Sigma_g / (1 + Hg * ktp_prev) * Sigma_ext_vals[0],
-        -(2 * np.pi * G) * kmat_prev / ktp_prev * Sigma_ext_vals[0]
+        -(2 * np.pi * G)**2 * Sigma_g / ((1 + Hg * ktp_prev)**2) * Sigma_ext_vals[0], 
+        -(2 * np.pi * G) * kmat_prev / (ktp_prev * (1 + Hs * ktp_prev)) * Sigma_ext_vals[0]
     ])
 
     h = t_grid[1] - t_grid[0]
@@ -411,8 +397,8 @@ def fast_combined_forcing_njit(t_target, t_grid, limit_idx, kx, kyc, Sigma_g, Si
         
         val_curr = np.array([
             0.0,  
-            -(2 * np.pi * G)**2 * Sigma_g / (1 + Hg * ktp_curr) * Sigma_ext_vals[i],
-            -(2 * np.pi * G) * kmat_curr / ktp_curr * Sigma_ext_vals[i]
+            -(2 * np.pi * G)**2 * Sigma_g / ((1 + Hg * ktp_curr)**2) * Sigma_ext_vals[i], 
+            -(2 * np.pi * G) * kmat_curr / (ktp_curr * (1 + Hs * ktp_curr)) * Sigma_ext_vals[i]
         ])
 
         total += 0.5 * h * (val_prev + val_curr)
@@ -436,7 +422,7 @@ def build_bb_vec_combined_njit(t_grid, kx, kyc, Sigma_g, Sigma_s, kappa, Omega0,
         forcing = fast_combined_forcing_njit(t_target, t_grid, i+2, kx, kyc, Sigma_g, Sigma_s, kappa, Omega0, sigma_x, Hg, Hs, G, fext_vals)
         kmat0 = njit_Kpot_kernel_func(t_target, t_start, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G)
         
-        impulse_res = np.array([0.0, -(2 * np.pi * G)**2 * Sigma_g /(1 + Hg*kt0) * impulse_val, -(2*np.pi*G)* (1.0/kt0) * kmat0 * impulse_val])
+        impulse_res = np.array([0.0, -(2 * np.pi * G)**2 * Sigma_g /(1 + Hg*kt0)**2 * impulse_val, -(2*np.pi*G)* (1.0/kt0)*(1.0/(1 + Hs * kt0)) * kmat0 * impulse_val])
         res = forcing + impulse_res
         
         bb_vec[3*i] = res[0]
@@ -457,7 +443,7 @@ def fast_two_fluid_combined_forcing_njit(t_target, t_grid, limit_idx, kx, kyc, S
     # def get_val(tp, sigma_ext_val):
     #     kmat = njit_Kpot_kernel_func(t_target, tp, kx, kyc, Sigma_s, kappa, Omega0, sigma_x, Hs, G)
     #     ktp = njit_Kfunc(tp, kx, kyc, kappa, Omega0)
-    #     return np.array([0.0,  -(2 * np.pi * G)**2 * Sigma_g * 1.0/(1+Hg*ktp) * sigma_ext_val, - (2* np.pi* G)**2 * Sigma_s * 1.0/(1+Hs*ktp) * sigma_ext_val])
+    #     return np.array([0.0,  -(2 * np.pi * G)**2 * Sigma_g * 1.0/((1+Hg*ktp)**2) * sigma_ext_val, - (2* np.pi* G)* kmat * 1.0/(ktp*(1+Hs*ktp)) * sigma_ext_val])
 
     # Calculate index 0 directly 
     tp_prev = t_grid[0]
@@ -465,9 +451,9 @@ def fast_two_fluid_combined_forcing_njit(t_target, t_grid, limit_idx, kx, kyc, S
     
     val_prev = np.array([
         0.0,  
-        -(2 * np.pi * G)**2 * Sigma_g / (1 + Hg * ktp_prev) * Sigma_ext_vals[0],
+        -(2 * np.pi * G)**2 * Sigma_g / ((1 + Hg * ktp_prev)**2) * Sigma_ext_vals[0], 
        0.0,
-        -(2 * np.pi * G)**2 * Sigma_s / (1 + Hs * ktp_prev) * Sigma_ext_vals[0],
+        -(2 * np.pi * G)**2 * Sigma_s / ((1 + Hs * ktp_prev)**2) * Sigma_ext_vals[0], 
     ])
 
     h = t_grid[1] - t_grid[0]
@@ -477,9 +463,9 @@ def fast_two_fluid_combined_forcing_njit(t_target, t_grid, limit_idx, kx, kyc, S
         
         val_curr = np.array([
             0.0,  
-            -(2 * np.pi * G)**2 * Sigma_g / (1 + Hg * ktp_curr) * Sigma_ext_vals[i],
+            -(2 * np.pi * G)**2 * Sigma_g / ((1 + Hg * ktp_curr)**2) * Sigma_ext_vals[i], 
            0.0,
-           -(2 * np.pi * G)**2 * Sigma_s / (1 + Hs * ktp_curr) * Sigma_ext_vals[i],
+           -(2 * np.pi * G)**2 * Sigma_s / ((1 + Hs * ktp_curr)**2) * Sigma_ext_vals[i], 
         ])
 
         total += 0.5 * h * (val_prev + val_curr)
@@ -502,7 +488,7 @@ def build_bb_vec_two_fluid_combined_njit(t_grid, kx, kyc, Sigma_g, Sigma_s, kapp
         t_target = t_grid[i+1]
         forcing = fast_two_fluid_combined_forcing_njit(t_target, t_grid, i+2, kx, kyc, Sigma_g, Sigma_s, kappa, Omega0, sigma_x, Hg, Hs, G, fext_vals)
         
-        impulse_res = np.array([0.0, -(2 * np.pi * G)**2 * Sigma_g /(1 + Hg*kt0) * impulse_val, 0.0, -(2 * np.pi * G)**2 * Sigma_s /(1 + Hs*kt0) * impulse_val])
+        impulse_res = np.array([0.0, -(2 * np.pi * G)**2 * Sigma_g /(1 + Hg*kt0)**2 * impulse_val, 0.0, -(2 * np.pi * G)**2 * Sigma_s /(1 + Hs*kt0)**2 * impulse_val])
 
         res = forcing + impulse_res
         
