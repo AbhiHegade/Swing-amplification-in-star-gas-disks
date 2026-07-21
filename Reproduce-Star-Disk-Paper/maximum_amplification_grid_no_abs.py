@@ -53,7 +53,7 @@ def get_self_gravity_response_max_gas_plus_stars(tf,ti, kyval, Rvals, Qgas, Qsta
 
     return np.max(surface_densities_stellar)
 
-def get_plotting_arr(RvalQgQs,hg,hs, kcritvals, tivals):
+def get_plotting_arr(RvalQgQs,hg,hs, ksigmavals, tivals):
     plotting_arr = []
 
     for val in RvalQgQs:
@@ -63,15 +63,15 @@ def get_plotting_arr(RvalQgQs,hg,hs, kcritvals, tivals):
                 get_physical_densities_and_speed_of_sounds_from_rafikov_dimensionless_variables_for_paper(0.0,0.0,Qgas, Qstars, Rval, kappa=kappa_val)
         maxvals = []
         print("-------")
-        for j in range(len(kcritvals)):
+        for j in range(len(ksigmavals)):
             maximum = 0.0
             maxnum = 0.0
             maxdenum = 0.0
             for ti in tivals:
                 
-                num = get_self_gravity_response_max_gas_plus_stars(20,ti, kcritvals[j], Rvals, Qgas, Qstars, hg, hs, 100)
+                num = get_self_gravity_response_max_gas_plus_stars(20,ti, ksigmavals[j], Rvals, Qgas, Qstars, hg, hs, 100)
                 
-                denum = Kfunc_kernel_max(20, ti, kcritvals[j], Sigma_s_val, sigma_x_val, Omega0_val, hs, 100)
+                denum = Kfunc_kernel_max(20, ti, ksigmavals[j], Sigma_s_val, sigma_x_val, Omega0_val, hs, 100)
                 
                 # maximum = max(maximum,  num/denum)
     
@@ -79,7 +79,7 @@ def get_plotting_arr(RvalQgQs,hg,hs, kcritvals, tivals):
                 maxnum = max(maxnum,  num)
     
                 # if(denum<1e-10):
-                #     print("ti = ",ti,"; ky = ",kcritvals[j], "; max = ", maximum, "; num = ",num, "; denum = ", denum)
+                #     print("ti = ",ti,"; ky = ",ksigmavals[j], "; max = ", maximum, "; num = ",num, "; denum = ", denum)
     
             maximum = maxnum/maxdenum
             maxvals.append(maximum)
@@ -92,21 +92,21 @@ def get_plotting_arr(RvalQgQs,hg,hs, kcritvals, tivals):
 
     return plotting_arr
 
-def get_max_amplification(Rval, Qgas, Qstars,hg,hs, kcritvals, tivals):
+def get_max_amplification(Rval, Qgas, Qstars,hg,hs, ksigmavals, tivals):
     start = time.perf_counter()
     _,_,Sigma_g_val, Sigma_s_val, sigma_x_val, cssq_val , Omega0_val, _ = \
                 get_physical_densities_and_speed_of_sounds_from_rafikov_dimensionless_variables_for_paper(0.0,0.0,Qgas, Qstars, Rval, kappa=kappa_val)
     maxvals = []
     print("-------")
-    for j in range(len(kcritvals)):
+    for j in range(len(ksigmavals)):
         maximum = 0.0
         maxnum = 0.0
         maxdenum = 0.0
         for ti in tivals:
             
-            num = get_self_gravity_response_max_gas_plus_stars(20,ti, kcritvals[j], Rval, Qgas, Qstars, hg, hs, 100)
+            num = get_self_gravity_response_max_gas_plus_stars(20,ti, ksigmavals[j], Rval, Qgas, Qstars, hg, hs, 100)
             
-            denum = Kfunc_kernel_max(20, ti, kcritvals[j], Sigma_s_val, sigma_x_val, Omega0_val, hs, 100)
+            denum = Kfunc_kernel_max(20, ti, ksigmavals[j], Sigma_s_val, sigma_x_val, Omega0_val, hs, 100)
             
             # maximum = max(maximum,  num/denum)
 
@@ -114,7 +114,7 @@ def get_max_amplification(Rval, Qgas, Qstars,hg,hs, kcritvals, tivals):
             maxnum = max(maxnum,  num)
 
             # if(denum<1e-10):
-            #     print("ti = ",ti,"; ky = ",kcritvals[j], "; max = ", maximum, "; num = ",num, "; denum = ", denum)
+            #     print("ti = ",ti,"; ky = ",ksigmavals[j], "; max = ", maximum, "; num = ",num, "; denum = ", denum)
 
         maximum = maxnum/maxdenum
         maxvals.append(maximum)
@@ -137,7 +137,7 @@ def get_max_amplification_data_and_plot(R, hg, hs):
     # -----------------------------------------------
     # Wave numbers and time to search
     # -----------------------------------------------
-    kcritvals = np.sort(1.0/np.linspace(0.5, 5, 100))
+    ksigmavals = np.sort(1.0/np.linspace(0.5, 5, 100))
     tivals = np.linspace(-20, 18, 100)
 
     # -----------------------------------------------
@@ -164,7 +164,7 @@ def get_max_amplification_data_and_plot(R, hg, hs):
                 max_amplification_arr[i, j] = get_max_amplification(
                     R, Qg, Qs,
                     hg, hs,
-                    kcritvals, tivals
+                    ksigmavals, tivals
                 )
 
     # -----------------------------------------------

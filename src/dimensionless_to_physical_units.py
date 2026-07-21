@@ -1,7 +1,7 @@
 import numpy as np
 
 def get_physical_quantities_from_rafikov_dimensionless_variables(kx, ky,
-    Qgas, Qstars, R, kappa=1, gamma = np.sqrt(2), kcrit = 1):
+    Qgas, Qstars, R, kappa=1, gamma = np.sqrt(2), ksigma = 1):
     '''
     G has been set to 1!
     '''
@@ -10,11 +10,11 @@ def get_physical_quantities_from_rafikov_dimensionless_variables(kx, ky,
     
     Pi = np.pi
     
-    Sigma_g = (R*kappa*kappa)/(kcrit*Pi*Qgas)
+    Sigma_g = (R*kappa*kappa)/(ksigma*Pi*Qgas)
     
-    Sigma_s = (kappa*kappa)/(kcrit*Pi*Qstars)
+    Sigma_s = (kappa*kappa)/(ksigma*Pi*Qstars)
 
-    sigma_x = kappa/kcrit
+    sigma_x = kappa/ksigma
 
     cssq = R*R*(sigma_x*sigma_x)
 
@@ -23,7 +23,7 @@ def get_physical_quantities_from_rafikov_dimensionless_variables(kx, ky,
     A = Omega + (kappa*kappa)/(-4*Omega)
 
 
-    return kx*kcrit, ky*kcrit, Sigma_g, Sigma_s, sigma_x, cssq , Omega, A
+    return kx*ksigma, ky*ksigma, Sigma_g, Sigma_s, sigma_x, cssq , Omega, A
 
 
 def get_physical_quantities_from_Binney_convention_for_stars_only(
@@ -50,25 +50,25 @@ def get_physical_quantities_from_Binney_convention_for_stars_only(
     return Sigma_g, Sigma_s, sigma_x, cssq , Omega, A
 
 
-def get_physical_densities_and_speed_of_sounds_from_rafikov_dimensionless_variables_for_paper(kx, ky, Qgas, Qstars, R, kappa=1, gamma = np.sqrt(2), kcrit = 1):
+def get_physical_densities_and_speed_of_sounds_from_rafikov_dimensionless_variables_for_paper(kx, ky, Qgas, Qstars, R, kappa=1, gamma = np.sqrt(2), ksigma = 1):
     '''
     G has been set to 1! Note that our convention for Qs differs from Rafikov
     '''
     Pi = np.pi
     aa=3.36 # Set to Pi for exact Rafikov convention
     
-    Sigma_g = (R*(kappa*kappa))/(kcrit*Pi*Qgas)
+    Sigma_g = (R*(kappa*kappa))/(ksigma*Pi*Qgas)
     
-    Sigma_s = (kappa*kappa)/(aa*kcrit*Qstars)
+    Sigma_s = (kappa*kappa)/(aa*ksigma*Qstars)
 
-    sigma_x = kappa/kcrit
+    sigma_x = kappa/ksigma
 
-    cssq = (R*R*(kappa*kappa))/(kcrit*kcrit)
+    cssq = (R*R*(kappa*kappa))/(ksigma*ksigma)
 
     Omega = 0.5*gamma*kappa
 
     A = Omega + (kappa*kappa)/(-4*Omega)
 
 
-    return kx*kcrit, ky*kcrit, Sigma_g, Sigma_s, sigma_x, cssq , Omega, A
+    return kx*ksigma, ky*ksigma, Sigma_g, Sigma_s, sigma_x, cssq , Omega, A
     
